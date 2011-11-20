@@ -81,7 +81,7 @@ public class APIResponseParser {
         try {
             return format.parse(status.getString("created_on")).getTime();
         } catch (ParseException e) {
-            Log.w("RememberValtech", "Could not parse status timestamp: " + status.getString("created_on"), e);
+            Log.w("ValtechIntra", "Could not parse status timestamp: " + status.getString("created_on"), e);
             return 0;
         }
     }

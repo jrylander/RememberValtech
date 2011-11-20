@@ -13,6 +13,8 @@ import se.valtech.intranet.client.android.Employee;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -30,6 +32,7 @@ public class ValtechQuizRepository implements QuizRepository {
     public ValtechQuizRepository(String username, String password) {
         client = new APIClient(username, password, new APIResponseParser());
         employees = client.getEmployees();
+        Collections.shuffle(employees);
     }
 
     public int size() {
