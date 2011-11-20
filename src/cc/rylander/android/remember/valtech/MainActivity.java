@@ -98,36 +98,26 @@ public class MainActivity extends Activity implements View.OnTouchListener, View
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_MOVE: {
-                for (int i=0; i<=event.getHistorySize(); i++) {
-                    for (int j=0; j<event.getPointerCount(); j++) {
-                        int midX;
-                        int midY;
-                        float size;
-                        if (event.getHistorySize() == i) {
-                            midX = (int) event.getX(j);
-                            midY = (int) event.getY(j);
-                            size = event.getSize(j);
-                        } else {
-                            midX = (int) event.getHistoricalX(j, i);
-                            midY = (int) event.getHistoricalY(j, i);
-                            size = event.getHistoricalSize(j, i);
-                        }
-                        int outer = (int) (75 * size);
+                int midX;
+                int midY;
+                float size;
+                midX = (int) event.getX();
+                midY = (int) event.getY();
+                size = event.getSize();
+                int outer = (int) (40 * size);
 
-                        for (int x=midX-outer; x<midX+outer; x += 3) {
-                            for (int y=midY-outer; y<midY+outer; y += 3) {
-                                if (x >= 0 && x < textBitmap.getWidth() &&
-                                    y >= 0 && y < textBitmap.getHeight()) {
-                                    int pixel = textBitmap.getPixel(x, y);
-                                    if (Color.BLACK != pixel) {
-                                        imageBitmap.setPixel(x, y, Color.BLACK);
-                                    }
-                                }
+                for (int x=midX-outer; x<midX+outer; x++) {
+                    for (int y=midY-outer; y<midY+outer; y++) {
+                        if (x >= 0 && x < textBitmap.getWidth() &&
+                                y >= 0 && y < textBitmap.getHeight()) {
+                            int pixel = textBitmap.getPixel(x, y);
+                            if (Color.BLACK != pixel) {
+                                imageBitmap.setPixel(x, y, Color.BLACK);
                             }
                         }
-                        image.invalidate(new Rect(midX-outer, midY-outer, midX+outer, midY+outer));
                     }
                 }
+                image.invalidate(new Rect(midX-outer, midY-outer, midX+outer, midY+outer));
             }
         }
         return true;
