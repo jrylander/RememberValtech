@@ -48,8 +48,10 @@ public class MainActivity extends Activity implements View.OnTouchListener
         super.onResume();
         try {
             if (preferences.getString("username", null) != null && preferences.getString("password", null) != null) {
-                repository = new ValtechQuizRepository(preferences.getString("username", ""),
-                        preferences.getString("password", ""));
+                if (null == repository) {
+                    repository = new ValtechQuizRepository(preferences.getString("username", ""),
+                            preferences.getString("password", ""));
+                }
                 showImage();
             }
         } catch (Exception e) {
@@ -104,7 +106,9 @@ public class MainActivity extends Activity implements View.OnTouchListener
             final int swipeMinDistance = vc.getScaledTouchSlop();
             final int swipeThresholdVelocity = vc.getScaledMinimumFlingVelocity();
             if (e1 != null && Math.abs(velocityX) > swipeThresholdVelocity &&
-                    e1.getX() - e2.getX() > swipeMinDistance) {
+                    e1.getX() - e2.getX() > swipeMinDistance &&
+                    (e1.getY() < 0.4 * imageBitmap.getHeight() || e1.getY() > 0.6 * imageBitmap.getHeight()) &&
+                    (e2.getY() < 0.4 * imageBitmap.getHeight() || e2.getY() > 0.6 * imageBitmap.getHeight())) {
                 try {
                     loadNextImage();
                     showImage();
@@ -139,7 +143,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
                             int pixel = textBitmap.getPixel(x, y);
                             if (Color.BLACK != pixel) {
                                 textHit = true;
-                                imageBitmap.setPixel(x, y, Color.BLACK);
+                                imageBitmap.setPixel(x, y, Color.CYAN);
                             }
                         }
                     }
