@@ -12,12 +12,11 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.*;
-import android.widget.Button;
 import android.widget.ImageView;
 
 import java.io.IOException;
 
-public class MainActivity extends Activity implements View.OnTouchListener, View.OnClickListener
+public class MainActivity extends Activity implements View.OnTouchListener
 {
     private Paint whiteText = new Paint();
     private Bitmap textBitmap;
@@ -27,6 +26,7 @@ public class MainActivity extends Activity implements View.OnTouchListener, View
     private Bitmap imageBitmap;
     private SharedPreferences preferences;
     private ValtechQuizRepository repository;
+    private ViewConfiguration vc;
 
 
     /** Called when the activity is first created. */
@@ -50,15 +50,14 @@ public class MainActivity extends Activity implements View.OnTouchListener, View
             if (preferences.getString("username", null) != null && preferences.getString("password", null) != null) {
                 repository = new ValtechQuizRepository(preferences.getString("username", ""),
                         preferences.getString("password", ""));
-                showNextImage();
+                showImage();
             }
         } catch (Exception e) {
             startActivity(new Intent(this, Preferences.class));
         }
     }
 
-    private void showNextImage() throws IOException {
-        repository.next();
+    private void showImage() throws IOException {
         imageBitmap = repository.getMutableBitmap(display.getWidth(), display.getHeight());
         image.setImageBitmap(imageBitmap);
 
@@ -93,10 +92,37 @@ public class MainActivity extends Activity implements View.OnTouchListener, View
                 whiteText);
     }
 
+    GestureDetector maybeMoveToNext = new GestureDetector(new GestureDetector.SimpleOnGestureListener() {
+        @Override
+        public boolean onDown(MotionEvent e) {
+            // Needed for onFling to work
+            return true;
+        }
+
+        @Override
+        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+            final int swipeMinDistance = vc.getScaledTouchSlop();
+            final int swipeThresholdVelocity = vc.getScaledMinimumFlingVelocity();
+            if (e1 != null && Math.abs(velocityX) > swipeThresholdVelocity &&
+                    e1.getX() - e2.getX() > swipeMinDistance) {
+                try {
+                    loadNextImage();
+                    showImage();
+                } catch (IOException e) {
+                    Log.e("RememberValtech", "While trying to show image", e);
+                }
+                return true;
+            }
+            return false;
+        }
+    });
+
     public boolean onTouch(View view, MotionEvent event) {
         super.onTouchEvent(event);
+
+        boolean textHit = false;
+
         switch (event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_MOVE: {
                 int midX;
                 int midY;
@@ -112,39 +138,41 @@ public class MainActivity extends Activity implements View.OnTouchListener, View
                                 y >= 0 && y < textBitmap.getHeight()) {
                             int pixel = textBitmap.getPixel(x, y);
                             if (Color.BLACK != pixel) {
+                                textHit = true;
                                 imageBitmap.setPixel(x, y, Color.BLACK);
                             }
                         }
                     }
                 }
-                image.invalidate(new Rect(midX-outer, midY-outer, midX+outer, midY+outer));
+                if (textHit) {
+                    image.invalidate(new Rect(midX-outer, midY-outer, midX+outer, midY+outer));
+                }
             }
         }
-        return true;
+
+        return textHit || maybeMoveToNext.onTouchEvent(event);
     }
 
     private void init() {
         display = getWindowManager().getDefaultDisplay();
         preferences = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        vc = ViewConfiguration.get(getApplicationContext());
 
         image = (ImageView) findViewById(R.id.image);
         image.setOnTouchListener(this);
-
-        Button button = (Button) findViewById(R.id.next);
-        button.setOnClickListener(this);
 
         whiteText.setColor(Color.WHITE);
         whiteText.setTextSize(30);
         whiteText.setAntiAlias(true);
     }
 
-    public void onClick(View view) {
+    private void loadNextImage() {
         boolean found = false;
         if (null != repository) {
             while(!found) {
                 repository.next();
                 try {
-                    showNextImage();
+                    showImage();
                     found = true;
                 } catch (IOException e) {
                     Log.w("RememberValtech", "Unable to download image", e);
