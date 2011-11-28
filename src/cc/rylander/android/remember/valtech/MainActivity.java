@@ -5,9 +5,11 @@
 package cc.rylander.android.remember.valtech;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.*;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
@@ -52,20 +54,50 @@ public class MainActivity extends Activity implements View.OnTouchListener
                     repository = new ValtechQuizRepository(preferences.getString("username", ""),
                             preferences.getString("password", ""));
                 }
-                showImage();
+                showImage(false);
             }
         } catch (Exception e) {
             startActivity(new Intent(this, Preferences.class));
         }
     }
 
-    private void showImage() throws IOException {
-        imageBitmap = repository.getMutableBitmap(display.getWidth(), display.getHeight());
-        image.setImageBitmap(imageBitmap);
+    private synchronized void showImage(final boolean stepToNext) {
+        final ProgressDialog progressDialog = ProgressDialog.show(this, "Laddar nästa bild", "Hav tålamod");
 
-        textBitmap = Bitmap.createBitmap(imageBitmap.getWidth(), imageBitmap.getHeight(), Bitmap.Config.RGB_565);
-        textCanvas = new Canvas(textBitmap);
-        printText(repository.getName());
+        new AsyncTask<Integer, Float, Bitmap>() {
+            @Override
+            protected Bitmap doInBackground(Integer... size) {
+                if (null != repository) {
+                    while(true) {
+                        if (stepToNext) {
+                            repository.next();
+                        }
+                        try {
+                            return repository.getMutableBitmap(size[0], size[1]);
+                        } catch (IOException e) {
+                            Log.w("RememberValtech", "Unable to download image", e);
+                        }
+                    }
+                }
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Bitmap bitmap) {
+                try {
+                    if (null != bitmap) {
+                        imageBitmap = bitmap;
+                        image.setImageBitmap(imageBitmap);
+
+                        textBitmap = Bitmap.createBitmap(imageBitmap.getWidth(), imageBitmap.getHeight(), Bitmap.Config.RGB_565);
+                        textCanvas = new Canvas(textBitmap);
+                        printText(repository.getName());
+                    }
+                } finally {
+                    progressDialog.dismiss();                    
+                }
+            }
+        }.execute(display.getWidth(), display.getHeight());
     }
 
     @Override
@@ -109,12 +141,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
                     e1.getX() - e2.getX() > swipeMinDistance &&
                     (e1.getY() < 0.4 * imageBitmap.getHeight() || e1.getY() > 0.6 * imageBitmap.getHeight()) &&
                     (e2.getY() < 0.4 * imageBitmap.getHeight() || e2.getY() > 0.6 * imageBitmap.getHeight())) {
-                try {
-                    loadNextImage();
-                    showImage();
-                } catch (IOException e) {
-                    Log.e("RememberValtech", "While trying to show image", e);
-                }
+                showImage(true);
                 return true;
             }
             return false;
@@ -168,20 +195,5 @@ public class MainActivity extends Activity implements View.OnTouchListener
         whiteText.setColor(Color.WHITE);
         whiteText.setTextSize(30);
         whiteText.setAntiAlias(true);
-    }
-
-    private void loadNextImage() {
-        boolean found = false;
-        if (null != repository) {
-            while(!found) {
-                repository.next();
-                try {
-                    showImage();
-                    found = true;
-                } catch (IOException e) {
-                    Log.w("RememberValtech", "Unable to download image", e);
-                }
-            }
-        }
     }
 }
