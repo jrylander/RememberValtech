@@ -5,6 +5,7 @@
 package cc.rylander.android.remember.valtech;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -15,6 +16,7 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.*;
 import android.widget.ImageView;
+import cc.rylander.android.remember.QuizRepository;
 
 import java.io.IOException;
 
@@ -27,7 +29,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
     private ImageView image;
     private Bitmap imageBitmap;
     private SharedPreferences preferences;
-    private ValtechQuizRepository repository;
+    private QuizRepository repository;
     private ViewConfiguration vc;
 
 
@@ -39,7 +41,6 @@ public class MainActivity extends Activity implements View.OnTouchListener
         setContentView(R.layout.main);
         init();
 
-        // Show prefs until we have a login ...
         if (preferences.getString("username", null) == null || preferences.getString("password", null) == null) {
             startActivity(new Intent(this, Preferences.class));
         }
@@ -51,27 +52,28 @@ public class MainActivity extends Activity implements View.OnTouchListener
         try {
             if (preferences.getString("username", null) != null && preferences.getString("password", null) != null) {
                 if (null == repository) {
-                    repository = new ValtechQuizRepository(preferences.getString("username", ""),
-                            preferences.getString("password", ""));
+                    repository = new CachingRepository(new ValtechQuizRepository(preferences.getString("username", ""),
+                            preferences.getString("password", "")));
                 }
-                showImage(false);
+                showImage();
             }
         } catch (Exception e) {
-            startActivity(new Intent(this, Preferences.class));
+            new AlertDialog.Builder(this).
+                    setMessage("Anslutningen till intranätet misslyckades. " +
+                               "Kontrollera inställningarna för inloggning.").
+                    setPositiveButton("Ok", null).
+                    show();
         }
     }
 
-    private synchronized void showImage(final boolean stepToNext) {
-        final ProgressDialog progressDialog = ProgressDialog.show(this, "Laddar nästa bild", "Hav tålamod");
+    private synchronized void showImage() {
+        final ProgressDialog progressDialog = ProgressDialog.show(this, "Laddar bild...", null);
 
         new AsyncTask<Integer, Float, Bitmap>() {
             @Override
             protected Bitmap doInBackground(Integer... size) {
                 if (null != repository) {
                     while(true) {
-                        if (stepToNext) {
-                            repository.next();
-                        }
                         try {
                             return repository.getMutableBitmap(size[0], size[1]);
                         } catch (IOException e) {
@@ -138,10 +140,15 @@ public class MainActivity extends Activity implements View.OnTouchListener
             final int swipeMinDistance = vc.getScaledTouchSlop();
             final int swipeThresholdVelocity = vc.getScaledMinimumFlingVelocity();
             if (e1 != null && Math.abs(velocityX) > swipeThresholdVelocity &&
-                    e1.getX() - e2.getX() > swipeMinDistance &&
+                    Math.abs(e1.getX() - e2.getX()) > swipeMinDistance &&
                     (e1.getY() < 0.4 * imageBitmap.getHeight() || e1.getY() > 0.6 * imageBitmap.getHeight()) &&
                     (e2.getY() < 0.4 * imageBitmap.getHeight() || e2.getY() > 0.6 * imageBitmap.getHeight())) {
-                showImage(true);
+                if (e1.getX() > e2.getX()) {
+                    repository.next();
+                } else {
+                    repository.prev();
+                }
+                showImage();
                 return true;
             }
             return false;

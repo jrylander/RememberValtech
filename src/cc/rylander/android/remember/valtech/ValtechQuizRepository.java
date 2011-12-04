@@ -14,7 +14,6 @@ import se.valtech.intranet.client.android.Employee;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -24,15 +23,13 @@ import java.util.List;
 public class ValtechQuizRepository implements QuizRepository {
 
     private List<Employee> employees;
-    private Iterator<Employee> iter;
-    private Employee current;
+    private int pos;
     private final APIClient client;
 
     public ValtechQuizRepository(String username, String password) {
         client = new APIClient(username, password, new APIResponseParser());
         employees = client.getEmployees();
         Collections.shuffle(employees);
-        next();
     }
 
     public int size() {
@@ -41,7 +38,7 @@ public class ValtechQuizRepository implements QuizRepository {
 
     public Bitmap getMutableBitmap(int width, int height) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        client.download(current.getImageUrl(), out);
+        client.download(current().getImageUrl(), out);
         Bitmap src = BitmapFactory.decodeByteArray(out.toByteArray(), 0, out.size());
 
         // Calculate how to scale
@@ -53,14 +50,20 @@ public class ValtechQuizRepository implements QuizRepository {
                 true).copy(Bitmap.Config.RGB_565, true);
     }
 
+    private Employee current() {
+        return employees.get(pos);
+    }
+
     public String getName() {
-        return current.getFirstName() + " " + current.getLastName();
+        return current().getFirstName() + " " + current().getLastName();
     }
 
     public void next() {
-        if (null == iter || !iter.hasNext()) {
-            iter = employees.iterator();
-        }
-        current = iter.next();
+        pos = (pos + 1) % employees.size();
+    }
+
+    public void prev() {
+        pos--;
+        if (pos < 0 ) pos = employees.size() - 1;
     }
 }

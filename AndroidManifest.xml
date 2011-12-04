@@ -7,7 +7,7 @@
 
     <application android:label="@string/app_name" android:icon="@drawable/icon">
         <activity android:name=".Preferences"
-                android:label="@string/prefTitleLogin"/>
+                android:label="@string/settings_label"/>
         <activity android:name=".MainActivity"
                   android:label="@string/app_name"
                   android:screenOrientation="portrait">

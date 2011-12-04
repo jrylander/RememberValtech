@@ -3,6 +3,7 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <PreferenceCategory android:title="@string/prefTitleLogin">
         <EditTextPreference android:title="@string/prefUsername"
+                            android:inputType="textVisiblePassword"
                             android:key="username" />
         <EditTextPreference android:title="@string/prefPassword"
                             android:key="password"
