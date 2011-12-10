@@ -13,12 +13,10 @@ import android.graphics.*;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.*;
 import android.widget.ImageView;
 import cc.rylander.android.remember.QuizRepository;
 
-import java.io.IOException;
 
 public class MainActivity extends Activity implements View.OnTouchListener
 {
@@ -49,57 +47,77 @@ public class MainActivity extends Activity implements View.OnTouchListener
     @Override
     protected void onResume() {
         super.onResume();
-        try {
-            if (preferences.getString("username", null) != null && preferences.getString("password", null) != null) {
-                if (null == repository) {
-                    repository = new CachingRepository(new ValtechQuizRepository(preferences.getString("username", ""),
-                            preferences.getString("password", "")));
-                }
-                showImage();
+        if (preferences.getString("username", null) != null && preferences.getString("password", null) != null) {
+            if (null == repository) {
+                final ProgressDialog progressDialog = ProgressDialog.show(this, "Ansluter...", null);
+                new AsyncTask<Integer, Float, QuizRepository>() {
+                    @Override
+                    protected QuizRepository doInBackground(Integer... widthHeight) {
+                        try {
+                            return new CachingRepository(new ValtechQuizRepository(preferences.getString("username", ""),
+                                    preferences.getString("password", ""), widthHeight[0], widthHeight[1]));
+                        } catch (Exception e) {
+                            return null;
+                        }
+                    }
+
+                    @Override
+                    protected void onPostExecute(QuizRepository repo) {
+                        progressDialog.dismiss();
+                        if (null == repo) {
+                            new AlertDialog.Builder(MainActivity.this).
+                                    setMessage("Anslutningen till intranätet misslyckades. " +
+                                            "Kontrollera inställningarna för inloggning.").
+                                    setPositiveButton("Ok", null).
+                                    show();
+                        } else {
+                            MainActivity.this.repository = repo;
+                            showImage();
+                        }
+                    }
+                }.execute(display.getHeight(), display.getWidth());
             }
-        } catch (Exception e) {
-            new AlertDialog.Builder(this).
-                    setMessage("Anslutningen till intranätet misslyckades. " +
-                               "Kontrollera inställningarna för inloggning.").
-                    setPositiveButton("Ok", null).
-                    show();
         }
     }
 
+    @SuppressWarnings("unchecked")
     private synchronized void showImage() {
-        final ProgressDialog progressDialog = ProgressDialog.show(this, "Laddar bild...", null);
+        if (null == repository) {
+            return;
+        }
 
-        new AsyncTask<Integer, Float, Bitmap>() {
-            @Override
-            protected Bitmap doInBackground(Integer... size) {
-                if (null != repository) {
-                    while(true) {
-                        try {
-                            return repository.getMutableBitmap(size[0], size[1]);
-                        } catch (IOException e) {
-                            Log.w("RememberValtech", "Unable to download image", e);
-                        }
+        if (repository.isCached()) {
+            useBitmap(repository.getMutableBitmap());
+
+        } else {
+            final ProgressDialog progressDialog = ProgressDialog.show(this, "Laddar bild...", null);
+            new AsyncTask<Object, Float, Bitmap>() {
+                @Override
+                protected Bitmap doInBackground(Object... notUsed) {
+                    return repository.getMutableBitmap();
+                }
+
+                @Override
+                protected void onPostExecute(Bitmap bitmap) {
+                    try {
+                        useBitmap(bitmap);
+                    } finally {
+                        progressDialog.dismiss();                    
                     }
                 }
-                return null;
-            }
+            }.execute();
+        }
+    }
 
-            @Override
-            protected void onPostExecute(Bitmap bitmap) {
-                try {
-                    if (null != bitmap) {
-                        imageBitmap = bitmap;
-                        image.setImageBitmap(imageBitmap);
+    private void useBitmap(Bitmap bitmap) {
+        if (null != bitmap) {
+            imageBitmap = bitmap;
+            image.setImageBitmap(imageBitmap);
 
-                        textBitmap = Bitmap.createBitmap(imageBitmap.getWidth(), imageBitmap.getHeight(), Bitmap.Config.RGB_565);
-                        textCanvas = new Canvas(textBitmap);
-                        printText(repository.getName());
-                    }
-                } finally {
-                    progressDialog.dismiss();                    
-                }
-            }
-        }.execute(display.getWidth(), display.getHeight());
+            textBitmap = Bitmap.createBitmap(imageBitmap.getWidth(), imageBitmap.getHeight(), Bitmap.Config.RGB_565);
+            textCanvas = new Canvas(textBitmap);
+            printText(repository.getName());
+        }
     }
 
     @Override

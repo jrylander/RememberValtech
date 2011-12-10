@@ -6,6 +6,7 @@ package cc.rylander.android.remember.valtech;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.util.Log;
 import cc.rylander.android.remember.QuizRepository;
 import se.valtech.intranet.client.android.APIClient;
 import se.valtech.intranet.client.android.APIResponseParser;
@@ -25,8 +26,11 @@ public class ValtechQuizRepository implements QuizRepository {
     private List<Employee> employees;
     private int pos;
     private final APIClient client;
+    private int width, height;
 
-    public ValtechQuizRepository(String username, String password) {
+    public ValtechQuizRepository(String username, String password, int width, int height) {
+        this.width = width;
+        this.height = height;
         client = new APIClient(username, password, new APIResponseParser());
         employees = client.getEmployees();
         Collections.shuffle(employees);
@@ -36,9 +40,20 @@ public class ValtechQuizRepository implements QuizRepository {
         return employees == null ? 0 : employees.size();
     }
 
-    public Bitmap getMutableBitmap(int width, int height) throws IOException {
+    public Bitmap getMutableBitmap() {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        client.download(current().getImageUrl(), out);
+
+        boolean done = false;
+        while(! done) {
+            try {
+                client.download(current().getImageUrl(), out);
+                done = true;
+            } catch (IOException e) {
+                Log.w("RememberValtech", "Unable to download image", e);
+                next();
+            }
+        }
+
         Bitmap src = BitmapFactory.decodeByteArray(out.toByteArray(), 0, out.size());
 
         // Calculate how to scale
@@ -65,5 +80,9 @@ public class ValtechQuizRepository implements QuizRepository {
     public void prev() {
         pos--;
         if (pos < 0 ) pos = employees.size() - 1;
+    }
+
+    public boolean isCached() {
+        return false;
     }
 }
