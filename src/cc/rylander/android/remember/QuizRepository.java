@@ -6,7 +6,7 @@ import java.io.IOException;
 
 
 public interface QuizRepository {
-    Bitmap getMutableBitmap(int pos) throws IOException;
+    Bitmap getBitmap(int pos) throws IOException;
     String getName(int pos);
     boolean isCached(int pos);
     int nextPos(int pos);

@@ -34,7 +34,7 @@ public class ValtechQuizRepository implements QuizRepository {
         Collections.shuffle(employees);
     }
 
-    public Bitmap getMutableBitmap(int pos) throws IOException {
+    public Bitmap getBitmap(int pos) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         client.download(employees.get(pos).getImageUrl(), out);
@@ -46,8 +46,7 @@ public class ValtechQuizRepository implements QuizRepository {
         float yScale = (float) height / src.getHeight();
         float scale = Math.min(xScale, yScale);
 
-        return Bitmap.createScaledBitmap(src, (int) (src.getWidth() * scale), (int) (src.getHeight() * scale),
-                true).copy(Bitmap.Config.RGB_565, true);
+        return Bitmap.createScaledBitmap(src, (int) (src.getWidth() * scale), (int) (src.getHeight() * scale), true);
     }
 
     public String getName(int pos) {

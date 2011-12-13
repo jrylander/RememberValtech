@@ -114,7 +114,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
     private Bitmap retryingGetBitMap() {
         while(true) {
             try {
-                return repository.getMutableBitmap(pos);
+                return repository.getBitmap(pos);
             } catch (Exception e) {
                 if (direction > 0) {
                     pos = repository.nextPos(pos);
@@ -127,7 +127,8 @@ public class MainActivity extends Activity implements View.OnTouchListener
 
     private void useBitmap(Bitmap bitmap) {
         if (null != bitmap) {
-            imageBitmap = bitmap;
+            imageBitmap = bitmap.copy(Bitmap.Config.RGB_565, true);
+
             image.setImageBitmap(imageBitmap);
 
             textBitmap = Bitmap.createBitmap(imageBitmap.getWidth(), imageBitmap.getHeight(), Bitmap.Config.RGB_565);

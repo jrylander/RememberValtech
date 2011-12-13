@@ -46,7 +46,7 @@ public class CachingRepository implements QuizRepository {
 
         cache.add(new CacheEntry(pos, james.submit(new Callable<Bitmap>() {
             public Bitmap call() throws Exception {
-                return CachingRepository.this.delegate.getMutableBitmap(pos);
+                return CachingRepository.this.delegate.getBitmap(pos);
             }
         })));
         if (cache.size() > CACHE_SIZE) cache.removeFirst();
@@ -61,7 +61,7 @@ public class CachingRepository implements QuizRepository {
         updateCacheWith(delegate.prevPos(delegate.prevPos(0)));
     }
 
-    public Bitmap getMutableBitmap(int pos) throws IOException {
+    public Bitmap getBitmap(int pos) throws IOException {
         if (null != cachedBitmap(pos)) {
             try {
                 return cachedBitmap(pos).get();
@@ -70,7 +70,7 @@ public class CachingRepository implements QuizRepository {
                 throw new IOException(e.getMessage());
             }
         }
-        return delegate.getMutableBitmap(pos);
+        return delegate.getBitmap(pos);
     }
 
     public String getName(int pos) {
