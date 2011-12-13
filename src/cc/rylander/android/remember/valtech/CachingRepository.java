@@ -21,7 +21,7 @@ public class CachingRepository implements QuizRepository {
     QuizRepository delegate;
 
     ExecutorService james = Executors.newFixedThreadPool(2);
-    
+
     final static int CACHE_SIZE = 10;
     LinkedList<CacheEntry> cache = new LinkedList<CacheEntry>();
     class CacheEntry {
@@ -56,7 +56,9 @@ public class CachingRepository implements QuizRepository {
         this.delegate = delegate;
         updateCacheWith(0);
         updateCacheWith(delegate.nextPos(0));
+        updateCacheWith(delegate.nextPos(delegate.nextPos(0)));
         updateCacheWith(delegate.prevPos(0));
+        updateCacheWith(delegate.prevPos(delegate.prevPos(0)));
     }
 
     public Bitmap getMutableBitmap(int pos) throws IOException {
@@ -82,12 +84,14 @@ public class CachingRepository implements QuizRepository {
     public int prevPos(int pos) {
         final int prevPos = delegate.prevPos(pos);
         updateCacheWith(delegate.prevPos(prevPos));
+        updateCacheWith(delegate.prevPos(delegate.prevPos(prevPos)));
         return prevPos;
     }
 
     public int nextPos(int pos) {
         final int nextPos = delegate.nextPos(pos);
         updateCacheWith(delegate.nextPos(nextPos));
+        updateCacheWith(delegate.nextPos(delegate.nextPos(nextPos)));
         return nextPos;
     }
 }
