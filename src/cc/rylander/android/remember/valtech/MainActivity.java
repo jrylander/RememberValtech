@@ -29,6 +29,8 @@ public class MainActivity extends Activity implements View.OnTouchListener
     private SharedPreferences preferences;
     private QuizRepository repository;
     private ViewConfiguration vc;
+    private int pos;
+    private int direction = 1;
 
 
     /** Called when the activity is first created. */
@@ -86,15 +88,15 @@ public class MainActivity extends Activity implements View.OnTouchListener
             return;
         }
 
-        if (repository.isCached()) {
-            useBitmap(repository.getMutableBitmap());
+        if (repository.isCached(pos)) {
+            useBitmap(retryingGetBitMap());
 
         } else {
             final ProgressDialog progressDialog = ProgressDialog.show(this, "Laddar bild...", null);
             new AsyncTask<Object, Float, Bitmap>() {
                 @Override
                 protected Bitmap doInBackground(Object... notUsed) {
-                    return repository.getMutableBitmap();
+                    return retryingGetBitMap();
                 }
 
                 @Override
@@ -109,6 +111,20 @@ public class MainActivity extends Activity implements View.OnTouchListener
         }
     }
 
+    private Bitmap retryingGetBitMap() {
+        while(true) {
+            try {
+                return repository.getMutableBitmap(pos);
+            } catch (Exception e) {
+                if (direction > 0) {
+                    pos = repository.nextPos(pos);
+                } else {
+                    pos = repository.prevPos(pos);
+                }
+            }
+        }
+    }
+
     private void useBitmap(Bitmap bitmap) {
         if (null != bitmap) {
             imageBitmap = bitmap;
@@ -116,7 +132,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
 
             textBitmap = Bitmap.createBitmap(imageBitmap.getWidth(), imageBitmap.getHeight(), Bitmap.Config.RGB_565);
             textCanvas = new Canvas(textBitmap);
-            printText(repository.getName());
+            printText(repository.getName(pos));
         }
     }
 
@@ -162,9 +178,11 @@ public class MainActivity extends Activity implements View.OnTouchListener
                     (e1.getY() < 0.4 * imageBitmap.getHeight() || e1.getY() > 0.6 * imageBitmap.getHeight()) &&
                     (e2.getY() < 0.4 * imageBitmap.getHeight() || e2.getY() > 0.6 * imageBitmap.getHeight())) {
                 if (e1.getX() > e2.getX()) {
-                    repository.next();
+                    pos = repository.nextPos(pos);
+                    direction = 1;
                 } else {
-                    repository.prev();
+                    pos = repository.prevPos(pos);
+                    direction = -1;
                 }
                 showImage();
                 return true;

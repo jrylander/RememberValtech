@@ -24,7 +24,6 @@ import java.util.List;
 public class ValtechQuizRepository implements QuizRepository {
 
     private List<Employee> employees;
-    private int pos;
     private final APIClient client;
     private int width, height;
 
@@ -36,21 +35,16 @@ public class ValtechQuizRepository implements QuizRepository {
         Collections.shuffle(employees);
     }
 
-    public int size() {
-        return employees == null ? 0 : employees.size();
-    }
-
-    public Bitmap getMutableBitmap() {
+    public Bitmap getMutableBitmap(int pos) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         boolean done = false;
         while(! done) {
             try {
-                client.download(current().getImageUrl(), out);
+                client.download(employees.get(pos).getImageUrl(), out);
                 done = true;
             } catch (IOException e) {
                 Log.w("RememberValtech", "Unable to download image", e);
-                next();
             }
         }
 
@@ -65,24 +59,20 @@ public class ValtechQuizRepository implements QuizRepository {
                 true).copy(Bitmap.Config.RGB_565, true);
     }
 
-    private Employee current() {
-        return employees.get(pos);
+    public String getName(int pos) {
+        return employees.get(pos).getFirstName() + " " + employees.get(pos).getLastName();
     }
 
-    public String getName() {
-        return current().getFirstName() + " " + current().getLastName();
+    public int nextPos(int pos) {
+        return (pos + 1) % employees.size();
     }
 
-    public void next() {
-        pos = (pos + 1) % employees.size();
+    public int prevPos(int pos) {
+        if (pos <= 0 ) return employees.size() - 1;
+        return pos - 1;
     }
 
-    public void prev() {
-        pos--;
-        if (pos < 0 ) pos = employees.size() - 1;
-    }
-
-    public boolean isCached() {
+    public boolean isCached(int pos) {
         return false;
     }
 }

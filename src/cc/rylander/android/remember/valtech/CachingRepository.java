@@ -5,13 +5,15 @@
 package cc.rylander.android.remember.valtech;
 
 import android.graphics.Bitmap;
-import android.util.Log;
 import cc.rylander.android.remember.QuizRepository;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.Future;
 
 /**
  * Created by Johan Rylander (johan@rylander.cc>
@@ -20,83 +22,31 @@ import java.util.concurrent.locks.ReentrantLock;
 public class CachingRepository implements QuizRepository {
 
     QuizRepository delegate;
-    final ReentrantLock currentLock = new ReentrantLock();
-    final Condition currentIsValid = currentLock.newCondition();
-    Bitmap previous, current;
-    ExecutorService james = Executors.newFixedThreadPool(1);
+    Map<Integer,Future<Bitmap>> cache = Collections.synchronizedMap(new HashMap<Integer, Future<Bitmap>>());
+    ExecutorService james = Executors.newFixedThreadPool(3);
 
     public CachingRepository(QuizRepository delegate) {
         this.delegate = delegate;
-        james.execute(new UpdateCurrent());
     }
 
-    class UpdateCurrent implements Runnable {
-        public void run() {
-            Bitmap mutableBitmap = delegate.getMutableBitmap();
-            currentLock.lock();
-            try {
-                current = mutableBitmap;
-                currentIsValid.signalAll();
-            } finally {
-                currentLock.unlock();
-            }
-        }
+    public Bitmap getMutableBitmap(int pos) throws ExecutionException, InterruptedException {
+        if (cache.containsKey(pos)) return cache.get(pos).get();
+        return delegate.getMutableBitmap(pos);
     }
 
-    public int size() {
-        return delegate.size();
+    public String getName(int pos) {
+        return delegate.getName(pos);
     }
 
-    public Bitmap getMutableBitmap() {
-        currentLock.lock();
-        try {
-            while (null == current) {
-                currentIsValid.await();
-            }
-            return current;
-        } catch (InterruptedException e) {
-            Log.w("RememberValtech", "Interrupted while waiting for image download", e);
-        } finally {
-            currentLock.unlock();
-        }
-        return null;
+    public boolean isCached(int pos) {
+        return cache.containsKey(pos) && cache.get(pos).isDone();
     }
 
-    public String getName() {
-        return delegate.getName();
+    public int prevPos(int pos) {
+        return delegate.prevPos(pos);
     }
 
-    public void next() {
-        currentLock.lock();
-        try {
-            previous = current;
-            current = null;
-            delegate.next();
-            james.execute(new UpdateCurrent());
-        } finally {
-            currentLock.unlock();
-        }
-    }
-
-    public void prev() {
-        currentLock.lock();
-        try {
-            if (null != previous) {
-                current = previous;
-                previous =  null;
-                delegate.prev();
-            }
-        } finally {
-            currentLock.unlock();
-        }
-    }
-
-    public boolean isCached() {
-        currentLock.lock();
-        try {
-            return null != current;
-        } finally {
-            currentLock.unlock();
-        }
+    public int nextPos(int pos) {
+        return delegate.nextPos(pos);
     }
 }
