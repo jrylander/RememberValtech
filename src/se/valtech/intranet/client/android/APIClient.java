@@ -6,7 +6,10 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
+import org.apache.http.params.HttpParams;
 
 
 import java.io.ByteArrayOutputStream;
@@ -20,33 +23,21 @@ public class APIClient {
 
     public APIClient(String username, String password, APIResponseParser parser) {
         this.parser = parser;
-        httpClient = new DefaultHttpClient();
+        DefaultHttpClient client = new DefaultHttpClient();
+        ClientConnectionManager mgr = client.getConnectionManager();
+        HttpParams params = client.getParams();
+        httpClient = new DefaultHttpClient(new ThreadSafeClientConnManager(params, mgr.getSchemeRegistry()), params);
         httpClient.getCredentialsProvider().setCredentials(new AuthScope("intranet.valtech.se", 443),
                                                        new UsernamePasswordCredentials(username, password));
     }
 
-    public boolean authenticate() {
-        HttpGet request = new HttpGet("https://intranet.valtech.se/api/employees/");
-        try {
-            HttpResponse response = httpClient.execute(request);
-            StatusLine status = response.getStatusLine();
-            Log.i("RememberValtech", "status.getStatusCode() = " + status.getStatusCode());
-            Log.i("RememberValtech", "status.getReasonPhrase() = " + status.getReasonPhrase());
-            return status.getStatusCode() == 200;
-
-        } catch (IOException e) {
-            Log.w("RememberValtech", "Could not authenticate", e);
-            return false;
-        }
-    }
-
-    public List<Employee> getEmployees() {
+    public synchronized List<Employee> getEmployees() {
         HttpGet request = new HttpGet("https://intranet.valtech.se/api/employees/");
         String data = execRequest(request);
         return parser.parseEmployees(data);
     }
 
-    public void download(String path, ByteArrayOutputStream out) throws IOException {
+    public synchronized void download(String path, ByteArrayOutputStream out) throws IOException {
         HttpGet request = new HttpGet("https://intranet.valtech.se" + path);
         Log.d("RememberValtech", "Downloading " + request.getURI());
         HttpResponse response = httpClient.execute(request);

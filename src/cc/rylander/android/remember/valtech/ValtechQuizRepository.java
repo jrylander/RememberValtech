@@ -6,7 +6,6 @@ package cc.rylander.android.remember.valtech;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.util.Log;
 import cc.rylander.android.remember.QuizRepository;
 import se.valtech.intranet.client.android.APIClient;
 import se.valtech.intranet.client.android.APIResponseParser;
@@ -35,18 +34,10 @@ public class ValtechQuizRepository implements QuizRepository {
         Collections.shuffle(employees);
     }
 
-    public Bitmap getMutableBitmap(int pos) {
+    public Bitmap getMutableBitmap(int pos) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
-        boolean done = false;
-        while(! done) {
-            try {
-                client.download(employees.get(pos).getImageUrl(), out);
-                done = true;
-            } catch (IOException e) {
-                Log.w("RememberValtech", "Unable to download image", e);
-            }
-        }
+        client.download(employees.get(pos).getImageUrl(), out);
 
         Bitmap src = BitmapFactory.decodeByteArray(out.toByteArray(), 0, out.size());
 
