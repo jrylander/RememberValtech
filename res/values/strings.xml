@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Remember Valtech</string>
-    <string name="prefTitleLogin">Inloggning till intranätet</string>
-    <string name="prefUsername">Login</string>
-    <string name="prefPassword">Lösenord</string>
+    <string name="username">Användarnamn</string>
+    <string name="password">Lösenord</string>
     <string name="settings_label">Inställningar</string>
+    <string name="valtech_login_title">Inloggning till Valtech</string>
+    <string name="login">Logga in</string>
+    <string name="cancel">Avbryt</string>
+    <string name="repository_failed">Anslutningen till intranätet misslyckades.</string>
+    <string name="loading_image">Laddar bild...</string>
+    <string name="remember_password">Spara lösenord</string>
+    <string name="loggingIn">Verifierar inloggning...</string>
+    <string name="connecting">Ansluter...</string>
 </resources>

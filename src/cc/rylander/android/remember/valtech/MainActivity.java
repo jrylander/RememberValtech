@@ -6,16 +6,16 @@ package cc.rylander.android.remember.valtech;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.ProgressDialog;
-import android.content.Intent;
-import android.content.SharedPreferences;
+import android.content.DialogInterface;
 import android.graphics.*;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.view.*;
 import android.widget.ImageView;
 import cc.rylander.android.remember.QuizRepository;
+import cc.rylander.android.remember.QuizRepositoryCallback;
 
 
 public class MainActivity extends Activity implements View.OnTouchListener
@@ -26,11 +26,11 @@ public class MainActivity extends Activity implements View.OnTouchListener
     private Display display;
     private ImageView image;
     private Bitmap imageBitmap;
-    private SharedPreferences preferences;
     private QuizRepository repository;
     private ViewConfiguration vc;
     private int pos;
     private int direction = 1;
+    static final int DIALOG_REPO_FAILED = 0;
 
 
     /** Called when the activity is first created. */
@@ -40,45 +40,40 @@ public class MainActivity extends Activity implements View.OnTouchListener
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         init();
-
-        if (preferences.getString("username", null) == null || preferences.getString("password", null) == null) {
-            startActivity(new Intent(this, Preferences.class));
-        }
     }
+
+    @Override
+    protected Dialog onCreateDialog(int id) {
+        if (DIALOG_REPO_FAILED == id) {
+            return new AlertDialog.Builder(MainActivity.this).
+                    setMessage(R.string.repository_failed).
+                    setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialogInterface, int i) {
+                            finish();
+                        }
+                    }).
+                    show();
+        }
+        return  null;
+    }
+
+    
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (preferences.getString("username", null) != null && preferences.getString("password", null) != null) {
-            if (null == repository) {
-                final ProgressDialog progressDialog = ProgressDialog.show(this, "Ansluter...", null);
-                new AsyncTask<Integer, Float, QuizRepository>() {
-                    @Override
-                    protected QuizRepository doInBackground(Integer... widthHeight) {
-                        try {
-                            return new CachingRepository(new ValtechQuizRepository(preferences.getString("username", ""),
-                                    preferences.getString("password", ""), widthHeight[0], widthHeight[1]));
-                        } catch (Exception e) {
-                            return null;
-                        }
+        if (null == repository) {
+            new ValtechQuizRepository(this,
+                    display.getHeight(), display.getWidth(), new QuizRepositoryCallback() {
+                public void calledWhenDone(QuizRepository repository) {
+                    if (null == repository) {
+                        showDialog(DIALOG_REPO_FAILED);
+                    } else {
+                        MainActivity.this.repository = new CachingRepository(repository);
+                        showImage();
                     }
-
-                    @Override
-                    protected void onPostExecute(QuizRepository repo) {
-                        progressDialog.dismiss();
-                        if (null == repo) {
-                            new AlertDialog.Builder(MainActivity.this).
-                                    setMessage("Anslutningen till intranätet misslyckades. " +
-                                            "Kontrollera inställningarna för inloggning.").
-                                    setPositiveButton("Ok", null).
-                                    show();
-                        } else {
-                            MainActivity.this.repository = repo;
-                            showImage();
-                        }
-                    }
-                }.execute(display.getHeight(), display.getWidth());
-            }
+                }
+            });
         }
     }
 
@@ -92,7 +87,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
             useBitmap(retryingGetBitMap());
 
         } else {
-            final ProgressDialog progressDialog = ProgressDialog.show(this, "Laddar bild...", null);
+            final ProgressDialog progressDialog = ProgressDialog.show(this, getText(R.string.loading_image), null);
             new AsyncTask<Object, Float, Bitmap>() {
                 @Override
                 protected Bitmap doInBackground(Object... notUsed) {
@@ -142,16 +137,6 @@ public class MainActivity extends Activity implements View.OnTouchListener
         super.onCreateOptionsMenu(menu);
         getMenuInflater().inflate(R.menu.menu, menu);
         return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.settings:
-                startActivity(new Intent(this, Preferences.class));
-                return true;
-        }
-        return false;
     }
 
     private void printText(String text) {
@@ -230,7 +215,6 @@ public class MainActivity extends Activity implements View.OnTouchListener
 
     private void init() {
         display = getWindowManager().getDefaultDisplay();
-        preferences = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
         vc = ViewConfiguration.get(getApplicationContext());
 
         image = (ImageView) findViewById(R.id.image);

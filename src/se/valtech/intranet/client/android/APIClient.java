@@ -31,6 +31,21 @@ public class APIClient {
                                                        new UsernamePasswordCredentials(username, password));
     }
 
+    public boolean authenticate() {
+        HttpGet request = new HttpGet("https://intranet.valtech.se/api/employees/");
+        try {
+            HttpResponse response = httpClient.execute(request);
+            StatusLine status = response.getStatusLine();
+            Log.i("RememberValtech", "status.getStatusCode() = " + status.getStatusCode());
+            Log.i("RememberValtech", "status.getReasonPhrase() = " + status.getReasonPhrase());
+            return status.getStatusCode() == 200;
+
+        } catch (IOException e) {
+            Log.w("RememberValtech", "Could not authenticate", e);
+            return false;
+        }
+    }
+
     public synchronized List<Employee> getEmployees() {
         HttpGet request = new HttpGet("https://intranet.valtech.se/api/employees/");
         String data = execRequest(request);
