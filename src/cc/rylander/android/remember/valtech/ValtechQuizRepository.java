@@ -44,7 +44,7 @@ public class ValtechQuizRepository implements QuizRepository {
     private final ValtechQuizRepositoryPreferences prefs;
 
 
-    public ValtechQuizRepository(Activity activity, int width, int height,
+    public ValtechQuizRepository(Activity activity, int height, int width,
                                  QuizRepositoryCallback<ValtechQuizRepository> callback) {
         this.callback = callback;
         this.activity = activity;
