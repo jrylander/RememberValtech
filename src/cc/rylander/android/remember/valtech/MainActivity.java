@@ -120,7 +120,8 @@ public class MainActivity extends Activity implements View.OnTouchListener
 
     private Bitmap retryingGetBitMap() {
         Bitmap bitmap = null;
-        while(null == bitmap) {
+        int attempts = 0;
+        while(null == bitmap && attempts++ < 10) {
             try {
                 bitmap = repository.getBitmap(pos);
             } catch (Exception e) {
@@ -144,6 +145,8 @@ public class MainActivity extends Activity implements View.OnTouchListener
             textCanvas = new Canvas(textBitmap);
             whiteText.setTextSize(((float) imageBitmap.getHeight() / display.getHeight()) * 40);
             printText(repository.getName(pos));
+        } else {
+            showDialog(DIALOG_REPO_FAILED);
         }
     }
 
