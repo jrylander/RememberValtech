@@ -27,6 +27,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
     private ImageView image;
     private Bitmap imageBitmap;
     private QuizRepository repository;
+    private ValtechQuizRepository valtechRepo;
     private ViewConfiguration vc;
     private int pos;
     private int direction = 1;
@@ -57,18 +58,17 @@ public class MainActivity extends Activity implements View.OnTouchListener
         return  null;
     }
 
-    
-
     @Override
     protected void onResume() {
         super.onResume();
         if (null == repository) {
             new ValtechQuizRepository(this,
-                    display.getHeight(), display.getWidth(), new QuizRepositoryCallback() {
-                public void calledWhenDone(QuizRepository repository) {
+                    display.getHeight(), display.getWidth(), new QuizRepositoryCallback<ValtechQuizRepository>() {
+                public void calledWhenDone(ValtechQuizRepository repository) {
                     if (null == repository) {
                         showDialog(DIALOG_REPO_FAILED);
                     } else {
+                        MainActivity.this.valtechRepo = repository;
                         MainActivity.this.repository = new CachingRepository(repository);
                         showImage();
                     }
@@ -76,6 +76,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
             });
         }
     }
+
 
     @SuppressWarnings("unchecked")
     private synchronized void showImage() {
@@ -107,9 +108,10 @@ public class MainActivity extends Activity implements View.OnTouchListener
     }
 
     private Bitmap retryingGetBitMap() {
-        while(true) {
+        Bitmap bitmap = null;
+        while(null == bitmap) {
             try {
-                return repository.getBitmap(pos);
+                bitmap = repository.getBitmap(pos);
             } catch (Exception e) {
                 if (direction > 0) {
                     pos = repository.nextPos(pos);
@@ -118,6 +120,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
                 }
             }
         }
+        return bitmap;
     }
 
     private void useBitmap(Bitmap bitmap) {
@@ -137,6 +140,21 @@ public class MainActivity extends Activity implements View.OnTouchListener
         super.onCreateOptionsMenu(menu);
         getMenuInflater().inflate(R.menu.menu, menu);
         return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.logout:
+                if (null != repository) {
+                    valtechRepo.logout();
+                    valtechRepo = null;
+                    repository = null;
+                    onResume();
+                }
+                return true;
+        }
+        return false;
     }
 
     private void printText(String text) {

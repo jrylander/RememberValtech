@@ -8,11 +8,9 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
-import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
-import android.preference.PreferenceManager;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
@@ -37,23 +35,25 @@ public class ValtechQuizRepository implements QuizRepository {
     private List<Employee> employees;
     private APIClient client;
     private int width, height;
-    private QuizRepositoryCallback callback;
+    private QuizRepositoryCallback<ValtechQuizRepository> callback;
     private Activity activity;
     private AlertDialog loginDialog;
     private EditText passwordField;
     private EditText loginField;
     private CheckBox shouldStorePassword;
+    private final ValtechQuizRepositoryPreferences prefs;
 
 
-    public ValtechQuizRepository(Activity activity, int width, int height, QuizRepositoryCallback callback) {
+    public ValtechQuizRepository(Activity activity, int width, int height,
+                                 QuizRepositoryCallback<ValtechQuizRepository> callback) {
         this.callback = callback;
         this.activity = activity;
         this.width = width;
         this.height = height;
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(activity);
-        String username = prefs.getString("username", "");
-        String password = prefs.getString("password", "");
+        prefs = new ValtechQuizRepositoryPreferences(activity);
+        String username = prefs.getUsername();
+        String password = prefs.getPassword();
         client = new APIClient(username, password, new APIResponseParser());
 
         if ("".equals(username) || "".equals(password)) {
@@ -63,6 +63,13 @@ public class ValtechQuizRepository implements QuizRepository {
         }
     }
 
+    public void logout() {
+        client = null;
+        prefs.edit();
+        prefs.removeUsername();
+        prefs.removePassword();
+        prefs.commit();
+    }
 
     @SuppressWarnings("unchecked")
     void login(String username, String password) {
@@ -130,15 +137,14 @@ public class ValtechQuizRepository implements QuizRepository {
         public void onClick(DialogInterface dialogInterface, int i) {
             dismissDialogs();
 
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(activity);
-            SharedPreferences.Editor edit = prefs.edit();
-            edit.putString("username", loginField.getText().toString());
+            prefs.edit();
+            prefs.setUsername(loginField.getText().toString());
             if (shouldStorePassword.isChecked()) {
-                edit.putString("password", passwordField.getText().toString());
+                prefs.setPassword(passwordField.getText().toString());
             } else {
-                edit.remove("password");
+                prefs.removePassword();
             }
-            edit.commit();
+            prefs.commit();
 
             login(loginField.getText().toString(), passwordField.getText().toString());
         }
@@ -158,10 +164,9 @@ public class ValtechQuizRepository implements QuizRepository {
         passwordField = (EditText) loginDialog.findViewById(R.id.password);
         shouldStorePassword = (CheckBox) loginDialog.findViewById(R.id.savePassword);
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this.activity);
-        String username = prefs.getString("username", "");
+        String username = prefs.getUsername();
         loginField.setText(username);
-        String password = prefs.getString("password", "");
+        String password = prefs.getPassword();
         if (!isEmpty(password)) {
             shouldStorePassword.setChecked(true);
             passwordField.setText(password);
