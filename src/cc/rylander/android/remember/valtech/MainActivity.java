@@ -32,6 +32,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
     private int pos;
     private int direction = 1;
     static final int DIALOG_REPO_FAILED = 0;
+    private boolean repoIsBeingCreated;
 
 
     /** Called when the activity is first created. */
@@ -61,19 +62,29 @@ public class MainActivity extends Activity implements View.OnTouchListener
     @Override
     protected void onResume() {
         super.onResume();
-        if (null == repository) {
-            new ValtechQuizRepository(this,
-                    display.getHeight(), display.getWidth(), new QuizRepositoryCallback<ValtechQuizRepository>() {
-                public void calledWhenDone(ValtechQuizRepository repository) {
-                    if (null == repository) {
-                        showDialog(DIALOG_REPO_FAILED);
-                    } else {
-                        MainActivity.this.valtechRepo = repository;
-                        MainActivity.this.repository = new CachingRepository(repository);
-                        showImage();
+        fetchRepository();
+    }
+
+    private void fetchRepository() {
+        if (null == repository && !repoIsBeingCreated) {
+            repoIsBeingCreated = true;
+            try {
+                new ValtechQuizRepository(this,
+                        display.getHeight(), display.getWidth(), new QuizRepositoryCallback<ValtechQuizRepository>() {
+                    public void calledWhenDone(ValtechQuizRepository repository) {
+                        repoIsBeingCreated = false;
+                        if (null == repository) {
+                            showDialog(DIALOG_REPO_FAILED);
+                        } else {
+                            MainActivity.this.valtechRepo = repository;
+                            MainActivity.this.repository = new CachingRepository(repository);
+                            showImage();
+                        }
                     }
-                }
-            });
+                });
+            } catch (Exception e) {
+                repoIsBeingCreated = false;
+            }
         }
     }
 
