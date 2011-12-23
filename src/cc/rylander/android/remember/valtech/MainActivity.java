@@ -142,6 +142,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
 
             textBitmap = Bitmap.createBitmap(imageBitmap.getWidth(), imageBitmap.getHeight(), Bitmap.Config.RGB_565);
             textCanvas = new Canvas(textBitmap);
+            whiteText.setTextSize(((float) imageBitmap.getHeight() / display.getHeight()) * 40);
             printText(repository.getName(pos));
         }
     }
@@ -250,7 +251,6 @@ public class MainActivity extends Activity implements View.OnTouchListener
         image.setOnTouchListener(this);
 
         whiteText.setColor(Color.WHITE);
-        whiteText.setTextSize(30);
         whiteText.setAntiAlias(true);
     }
 }
