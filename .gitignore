@@ -1,3 +1,6 @@
 out/
 .idea/workspace.xml
 gen/
+bin/
+proguard_logs/
+.DS_Store
