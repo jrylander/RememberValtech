@@ -191,10 +191,12 @@ public class MainActivity extends Activity implements View.OnTouchListener
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             final int swipeMinDistance = vc.getScaledTouchSlop();
             final int swipeThresholdVelocity = vc.getScaledMinimumFlingVelocity();
+            final double topThreshold = 0.4 * imageBitmap.getHeight();
+            final double bottomThreshold = 0.6 * imageBitmap.getHeight();
             if (e1 != null && Math.abs(velocityX) > swipeThresholdVelocity &&
                     Math.abs(e1.getX() - e2.getX()) > swipeMinDistance &&
-                    (e1.getY() < 0.4 * imageBitmap.getHeight() || e1.getY() > 0.6 * imageBitmap.getHeight()) &&
-                    (e2.getY() < 0.4 * imageBitmap.getHeight() || e2.getY() > 0.6 * imageBitmap.getHeight())) {
+                    (e1.getY() < topThreshold &&  e2.getY() < topThreshold ||
+                     e1.getY() > bottomThreshold &&  e2.getY() > bottomThreshold)) {
                 if (e1.getX() > e2.getX()) {
                     pos = repository.nextPos(pos);
                     direction = 1;
@@ -253,7 +255,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
         image.setOnTouchListener(this);
 
         whiteText.setColor(Color.WHITE);
-        whiteText.setTextSize(30);
+        whiteText.setTextSize(55);
         whiteText.setAntiAlias(true);
     }
 }
