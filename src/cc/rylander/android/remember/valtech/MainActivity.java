@@ -33,6 +33,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
     private int direction = 1;
     static final int DIALOG_REPO_FAILED = 0;
     private boolean repoIsBeingCreated;
+    private boolean sizeIsSet;
 
 
     /** Called when the activity is first created. */
@@ -70,18 +71,22 @@ public class MainActivity extends Activity implements View.OnTouchListener
             repoIsBeingCreated = true;
             try {
                 new ValtechQuizRepository(this,
-                        display.getHeight(), display.getWidth(), new QuizRepositoryCallback<ValtechQuizRepository>() {
-                    public void calledWhenDone(ValtechQuizRepository repository) {
-                        repoIsBeingCreated = false;
-                        if (null == repository) {
-                            showDialog(DIALOG_REPO_FAILED);
-                        } else {
-                            MainActivity.this.valtechRepo = repository;
-                            MainActivity.this.repository = new CachingRepository(repository);
-                            showImage();
-                        }
-                    }
-                });
+                        // Fake a value for status bar etc, will be fixed in OnGlobalLayoutListener below
+                        // Must be more than actual height of those, otherwise scratching text does not work
+                        display.getHeight() - 150,
+                        display.getWidth(),
+                        new QuizRepositoryCallback<ValtechQuizRepository>() {
+                            public void calledWhenDone(ValtechQuizRepository repository) {
+                                repoIsBeingCreated = false;
+                                if (null == repository) {
+                                    showDialog(DIALOG_REPO_FAILED);
+                                } else {
+                                    MainActivity.this.valtechRepo = repository;
+                                    MainActivity.this.repository = new CachingRepository(repository);
+                                    showImage();
+                                }
+                            }
+                        });
             } catch (Exception e) {
                 repoIsBeingCreated = false;
             }
@@ -253,6 +258,15 @@ public class MainActivity extends Activity implements View.OnTouchListener
 
         image = (ImageView) findViewById(R.id.image);
         image.setOnTouchListener(this);
+
+        image.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            public void onGlobalLayout() {
+                if (!sizeIsSet && null != repository && 0 != image.getHeight() && 0 != image.getWidth()) {
+                    repository.setDimension(image.getWidth(), image.getHeight());
+                    sizeIsSet = true;
+                }
+            }
+        });
 
         whiteText.setColor(Color.WHITE);
         whiteText.setTextSize(55);

@@ -6,6 +6,7 @@ import java.io.IOException;
 
 
 public interface QuizRepository {
+    void setDimension(int width, int height);
     Bitmap getBitmap(int pos) throws IOException;
     String getName(int pos);
     boolean isCached(int pos);

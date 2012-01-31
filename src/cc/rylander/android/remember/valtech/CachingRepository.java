@@ -81,6 +81,11 @@ public class CachingRepository implements QuizRepository {
         return null != cachedBitmap(pos) && cachedBitmap(pos).isDone();
     }
 
+    public void setDimension(int width, int height) {
+        delegate.setDimension(width, height);
+        cache.clear();
+    }
+
     public int prevPos(int pos) {
         final int prevPos = delegate.prevPos(pos);
         updateCacheWith(delegate.prevPos(prevPos));

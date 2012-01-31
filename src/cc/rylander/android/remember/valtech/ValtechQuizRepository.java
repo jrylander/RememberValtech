@@ -180,6 +180,10 @@ public class ValtechQuizRepository implements QuizRepository {
         }
     }
 
+    public void setDimension(int width, int height) {
+        this.width = width;
+        this.height = height;
+    }
 
     public Bitmap getBitmap(int pos) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -191,9 +195,23 @@ public class ValtechQuizRepository implements QuizRepository {
         // Calculate how to scale
         float xScale = (float) width / src.getWidth();
         float yScale = (float) height / src.getHeight();
-        float scale = Math.min(xScale, yScale);
+        float scale = Math.max(xScale, yScale);
 
-        return Bitmap.createScaledBitmap(src, (int) (src.getWidth() * scale), (int) (src.getHeight() * scale), true);
+        // and crop accordingly
+        Bitmap croppedBitmap;
+        if (xScale > yScale) {
+            // Crop top/bottom
+            final float heightIfNotCropped = scale * src.getHeight();
+            croppedBitmap = Bitmap.createBitmap(src, 0, (int) ((heightIfNotCropped - height) / 2 / scale),
+                    src.getWidth(), (int) (height / scale));
+        } else {
+            // Crop right/left
+            final float widthIfNotCropped = scale * src.getWidth();
+            croppedBitmap = Bitmap.createBitmap(src, (int) ((widthIfNotCropped - width) / 2 / scale), 0,
+                    (int) (width / scale), src.getHeight());
+        }
+
+        return Bitmap.createScaledBitmap(croppedBitmap, width, height, true);
     }
 
     public String getName(int pos) {
