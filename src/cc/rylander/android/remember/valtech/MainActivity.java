@@ -24,7 +24,6 @@ public class MainActivity extends Activity implements View.OnTouchListener
     private Paint whiteText = new Paint();
     private Bitmap textBitmap;
     private Canvas textCanvas;
-    private Display display;
     private ImageView image;
     private Bitmap imageBitmap;
     private QuizRepository repository;
@@ -34,7 +33,6 @@ public class MainActivity extends Activity implements View.OnTouchListener
     private int direction = 1;
     static final int DIALOG_REPO_FAILED = 0;
     private boolean repoIsBeingCreated;
-    private boolean sizeIsSet;
 
 
     /** Called when the activity is first created. */
@@ -76,18 +74,16 @@ public class MainActivity extends Activity implements View.OnTouchListener
     @Override
     protected void onResume() {
         super.onResume();
-        fetchRepository();
+        // fetchRepository();
     }
 
-    private void fetchRepository() {
+    private void fetchRepository(int width, int height) {
         if (null == repository && !repoIsBeingCreated) {
             repoIsBeingCreated = true;
             try {
                 new ValtechQuizRepository(this,
-                        // Fake a value for status bar etc, will be fixed in OnGlobalLayoutListener below
-                        // Must be more than actual height of those, otherwise scratching text does not work
-                        display.getHeight() - 150,
-                        display.getWidth(),
+                        width,
+                        height,
                         new QuizRepositoryCallback<ValtechQuizRepository>() {
                             public void calledWhenDone(ValtechQuizRepository repository) {
                                 repoIsBeingCreated = false;
@@ -266,17 +262,17 @@ public class MainActivity extends Activity implements View.OnTouchListener
     }
 
     private void init() {
-        display = getWindowManager().getDefaultDisplay();
         vc = ViewConfiguration.get(getApplicationContext());
 
         image = (ImageView) findViewById(R.id.image);
-        image.setOnTouchListener(this);
 
+        // Kick off image showing when we have the size of the image view
         image.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             public void onGlobalLayout() {
-                if (!sizeIsSet && null != repository && 0 != image.getHeight() && 0 != image.getWidth()) {
-                    repository.setDimension(image.getWidth(), image.getHeight());
-                    sizeIsSet = true;
+                if (0 != image.getHeight() && 0 != image.getWidth()) {
+                    fetchRepository(image.getWidth(), image.getHeight());
+                    image.setOnTouchListener(MainActivity.this);
+                    image.getViewTreeObserver().removeGlobalOnLayoutListener(this);
                 }
             }
         });
