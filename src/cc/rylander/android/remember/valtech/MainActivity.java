@@ -16,6 +16,7 @@ import android.view.*;
 import android.widget.ImageView;
 import cc.rylander.android.remember.QuizRepository;
 import cc.rylander.android.remember.QuizRepositoryCallback;
+import com.flurry.android.FlurryAgent;
 
 
 public class MainActivity extends Activity implements View.OnTouchListener
@@ -43,6 +44,18 @@ public class MainActivity extends Activity implements View.OnTouchListener
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
         init();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        FlurryAgent.onStartSession(this, "GK1LFL775BWZG4L4APFY");
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        FlurryAgent.onEndSession(this);
     }
 
     @Override
