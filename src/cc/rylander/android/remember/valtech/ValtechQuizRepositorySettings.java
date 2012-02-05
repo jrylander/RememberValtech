@@ -8,12 +8,12 @@ import android.preference.PreferenceManager;
  * Created by Johan Rylander (johan@rylander.cc)
  * on jrylander
  */
-public class ValtechQuizRepositoryPreferences {
+public class ValtechQuizRepositorySettings {
 
     private final SharedPreferences prefs;
     private SharedPreferences.Editor edit;
 
-    public ValtechQuizRepositoryPreferences(Activity activity) {
+    public ValtechQuizRepositorySettings(Activity activity) {
         prefs = PreferenceManager.getDefaultSharedPreferences(activity);
     }
 

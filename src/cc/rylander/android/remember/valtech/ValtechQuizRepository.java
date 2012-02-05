@@ -34,24 +34,20 @@ public class ValtechQuizRepository implements QuizRepository {
 
     private List<Employee> employees;
     private APIClient client;
-    private int width, height;
     private QuizRepositoryCallback<ValtechQuizRepository> callback;
     private Activity activity;
     private AlertDialog loginDialog;
     private EditText passwordField;
     private EditText loginField;
     private CheckBox shouldStorePassword;
-    private final ValtechQuizRepositoryPreferences prefs;
+    private final ValtechQuizRepositorySettings prefs;
 
 
-    public ValtechQuizRepository(Activity activity, int width, int height,
-                                 QuizRepositoryCallback<ValtechQuizRepository> callback) {
+    public ValtechQuizRepository(Activity activity, QuizRepositoryCallback<ValtechQuizRepository> callback) {
         this.callback = callback;
         this.activity = activity;
-        this.width = width;
-        this.height = height;
 
-        prefs = new ValtechQuizRepositoryPreferences(activity);
+        prefs = new ValtechQuizRepositorySettings(activity);
         String username = prefs.getUsername();
         String password = prefs.getPassword();
         client = new APIClient(username, password, new APIResponseParser());
@@ -180,38 +176,16 @@ public class ValtechQuizRepository implements QuizRepository {
         }
     }
 
-    public void setDimension(int width, int height) {
-        this.width = width;
-        this.height = height;
-    }
-
     public Bitmap getBitmap(int pos) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
 
         client.download(employees.get(pos).getImageUrl(), out);
 
-        Bitmap src = BitmapFactory.decodeByteArray(out.toByteArray(), 0, out.size());
-
-        // Calculate how to scale
-        float xScale = (float) width / src.getWidth();
-        float yScale = (float) height / src.getHeight();
-        float scale = Math.max(xScale, yScale);
-
-        // and crop accordingly
-        Bitmap croppedBitmap;
-        if (xScale > yScale) {
-            // Crop top/bottom
-            final float heightIfNotCropped = scale * src.getHeight();
-            croppedBitmap = Bitmap.createBitmap(src, 0, (int) ((heightIfNotCropped - height) / 2 / scale),
-                    src.getWidth(), (int) (height / scale));
-        } else {
-            // Crop right/left
-            final float widthIfNotCropped = scale * src.getWidth();
-            croppedBitmap = Bitmap.createBitmap(src, (int) ((widthIfNotCropped - width) / 2 / scale), 0,
-                    (int) (width / scale), src.getHeight());
-        }
-
-        return Bitmap.createScaledBitmap(croppedBitmap, width, height, true);
+        final BitmapFactory.Options opts = new BitmapFactory.Options();
+        opts.inInputShareable = true;
+        opts.inPurgeable = true;
+        opts.inPreferredConfig = Bitmap.Config.RGB_565;
+        return BitmapFactory.decodeByteArray(out.toByteArray(), 0, out.size(), opts);
     }
 
     public String getName(int pos) {

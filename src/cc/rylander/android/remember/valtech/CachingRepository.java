@@ -22,7 +22,7 @@ public class CachingRepository implements QuizRepository {
 
     ExecutorService james = Executors.newFixedThreadPool(2);
 
-    final static int CACHE_SIZE = 10;
+    final static int CACHE_SIZE = 5;
     LinkedList<CacheEntry> cache = new LinkedList<CacheEntry>();
     class CacheEntry {
         int pos;
@@ -41,24 +41,31 @@ public class CachingRepository implements QuizRepository {
         return null;
     }
 
-    void updateCacheWith(final int pos) {
+    void updateCacheWith(final int pos, boolean forward) {
         if (null != cachedBitmap(pos)) return;
 
-        cache.add(new CacheEntry(pos, james.submit(new Callable<Bitmap>() {
+        final CacheEntry entry = new CacheEntry(pos, james.submit(new Callable<Bitmap>() {
             public Bitmap call() throws Exception {
                 return CachingRepository.this.delegate.getBitmap(pos);
             }
-        })));
-        if (cache.size() > CACHE_SIZE) cache.removeFirst();
+        }));
+        if (forward) {
+            cache.addLast(entry);
+            if (cache.size() > CACHE_SIZE) cache.removeFirst();
+        } else {
+            cache.addFirst(entry);
+            if (cache.size() > CACHE_SIZE) cache.removeLast();
+        }
     }
 
     public CachingRepository(QuizRepository delegate) {
         this.delegate = delegate;
-        updateCacheWith(0);
-        updateCacheWith(delegate.nextPos(0));
-        updateCacheWith(delegate.nextPos(delegate.nextPos(0)));
-        updateCacheWith(delegate.prevPos(0));
-        updateCacheWith(delegate.prevPos(delegate.prevPos(0)));
+        updateCacheWith(delegate.prevPos(0), true);
+        updateCacheWith(0, true);
+        for (int i=0, toFetch = delegate.nextPos(0); i < CACHE_SIZE - 2; i++) {
+            updateCacheWith(toFetch, true);
+            toFetch = delegate.nextPos(toFetch);
+        }
     }
 
     public Bitmap getBitmap(int pos) throws IOException {
@@ -81,22 +88,23 @@ public class CachingRepository implements QuizRepository {
         return null != cachedBitmap(pos) && cachedBitmap(pos).isDone();
     }
 
-    public void setDimension(int width, int height) {
-        delegate.setDimension(width, height);
-        cache.clear();
-    }
-
     public int prevPos(int pos) {
         final int prevPos = delegate.prevPos(pos);
-        updateCacheWith(delegate.prevPos(prevPos));
-        updateCacheWith(delegate.prevPos(delegate.prevPos(prevPos)));
+        int toFetch = prevPos;
+        for (int i=0; i < Math.min(2, CACHE_SIZE); i++) {
+            updateCacheWith(toFetch, false);
+            toFetch = delegate.prevPos(toFetch);
+        }
         return prevPos;
     }
 
     public int nextPos(int pos) {
         final int nextPos = delegate.nextPos(pos);
-        updateCacheWith(delegate.nextPos(nextPos));
-        updateCacheWith(delegate.nextPos(delegate.nextPos(nextPos)));
+        int toFetch = nextPos;
+        for (int i=0; i < CACHE_SIZE - 1; i++) {
+            updateCacheWith(toFetch, true);
+            toFetch = delegate.nextPos(toFetch);
+        }
         return nextPos;
     }
 }

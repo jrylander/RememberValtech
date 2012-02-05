@@ -1,0 +1,14 @@
+<!--
+  ~ Copyright (c) 2012 Johan Rylander (johan@rylander.cc). All rights reserved.
+  -->
+
+<resources>
+  <string-array name="cropLabels">
+    <item>Zoom images as long as whole image is shown</item>
+    <item>Zoom images until screen is filled</item>
+  </string-array>
+  <string-array name="cropValues">
+    <item>noCrop</item>
+    <item>crop</item>
+  </string-array>
+</resources>

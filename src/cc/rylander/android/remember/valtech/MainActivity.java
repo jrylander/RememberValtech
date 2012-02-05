@@ -9,6 +9,7 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.*;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -21,27 +22,75 @@ import com.flurry.android.FlurryAgent;
 
 public class MainActivity extends Activity implements View.OnTouchListener
 {
-    private Paint whiteText = new Paint();
-    private Bitmap textBitmap;
-    private Canvas textCanvas;
-    private ImageView image;
-    private Bitmap imageBitmap;
-    private QuizRepository repository;
-    private ValtechQuizRepository valtechRepo;
-    private ViewConfiguration vc;
-    private int pos;
-    private int direction = 1;
+    Paint white = new Paint();
+    Paint cyan = new Paint();
+    Paint imagePaint = new Paint();
+    Bitmap textBitmap;
+    Canvas textCanvas;
+    ImageView image;
+    Canvas imageCanvas;
+    QuizRepository repository;
+    ValtechQuizRepository valtechRepo;
+    ViewConfiguration vc;
+    int pos;
+    int direction = 1;
     static final int DIALOG_REPO_FAILED = 0;
-    private boolean repoIsBeingCreated;
+    boolean repoIsBeingCreated;
+    Settings prefs;
+    boolean shouldCrop;
+    int width;
+    int height;
 
 
-    /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.main);
-        init();
+
+        vc = ViewConfiguration.get(getApplicationContext());
+        prefs = new Settings(this);
+        shouldCrop = prefs.shouldCrop();
+
+        image = (ImageView) findViewById(R.id.image);
+
+        // Kick off image showing when we have the size of the image view
+        image.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            public void onGlobalLayout() {
+                if (0 != image.getHeight() && 0 != image.getWidth()) {
+                    width = image.getWidth();
+                    height = image.getHeight();
+                    textBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
+                    textCanvas = new Canvas(textBitmap);
+                    final Bitmap imageBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
+                    imageCanvas = new Canvas(imageBitmap);
+                    image.setImageBitmap(imageBitmap);
+                    fetchRepository();
+                    image.setOnTouchListener(MainActivity.this);
+                    image.getViewTreeObserver().removeGlobalOnLayoutListener(this);
+                }
+            }
+        });
+
+        white.setColor(Color.WHITE);
+        white.setTextSize(55);
+        white.setAntiAlias(true);
+
+        cyan.setColor(Color.CYAN);
+
+        imagePaint.setFilterBitmap(true);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (null == repository) {
+            fetchRepository();
+        } else if (prefs.shouldCrop() != shouldCrop) {
+            showImage();
+            shouldCrop = prefs.shouldCrop();
+        }
     }
 
     @Override
@@ -71,19 +120,11 @@ public class MainActivity extends Activity implements View.OnTouchListener
         return  null;
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // fetchRepository();
-    }
-
-    private void fetchRepository(int width, int height) {
+    void fetchRepository() {
         if (null == repository && !repoIsBeingCreated) {
             repoIsBeingCreated = true;
             try {
                 new ValtechQuizRepository(this,
-                        width,
-                        height,
                         new QuizRepositoryCallback<ValtechQuizRepository>() {
                             public void calledWhenDone(ValtechQuizRepository repository) {
                                 repoIsBeingCreated = false;
@@ -102,9 +143,8 @@ public class MainActivity extends Activity implements View.OnTouchListener
         }
     }
 
-
     @SuppressWarnings("unchecked")
-    private synchronized void showImage() {
+    synchronized void showImage() {
         if (null == repository) {
             return;
         }
@@ -132,7 +172,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
         }
     }
 
-    private Bitmap retryingGetBitMap() {
+    Bitmap retryingGetBitMap() {
         Bitmap bitmap = null;
         int attempts = 0;
         while(null == bitmap && attempts++ < 10) {
@@ -149,18 +189,31 @@ public class MainActivity extends Activity implements View.OnTouchListener
         return bitmap;
     }
 
-    private void useBitmap(Bitmap bitmap) {
+    void useBitmap(Bitmap bitmap) {
         if (null != bitmap) {
-            imageBitmap = bitmap.copy(Bitmap.Config.RGB_565, true);
+            imageCanvas.drawColor(Color.BLACK);
 
-            image.setImageBitmap(imageBitmap);
+            imageCanvas.drawBitmap(bitmap, scaleAndCenter(bitmap), imagePaint);
+            image.invalidate();
 
-            textBitmap = Bitmap.createBitmap(imageBitmap.getWidth(), imageBitmap.getHeight(), Bitmap.Config.RGB_565);
-            textCanvas = new Canvas(textBitmap);
             printText(repository.getName(pos));
         } else {
             showDialog(DIALOG_REPO_FAILED);
         }
+    }
+
+    Matrix scaleAndCenter(Bitmap bitmap) {
+        final Matrix matrix = new Matrix();
+        float xScale = (float) width / bitmap.getWidth();
+        float yScale = (float) height / bitmap.getHeight();
+        float scale = shouldCrop ? Math.max(xScale, yScale) : Math.min(xScale, yScale);
+        matrix.preScale(scale, scale);
+
+        float dx = (width - bitmap.getWidth() * scale) / 2;
+        float dy = (height - bitmap.getHeight() * scale) / 2;
+        matrix.postTranslate(dx, dy);
+
+        return matrix;
     }
 
     @Override
@@ -181,17 +234,20 @@ public class MainActivity extends Activity implements View.OnTouchListener
                     onResume();
                 }
                 return true;
+            case R.id.settings:
+                startActivity(new Intent(this, Preferences.class));
+                return true;
         }
         return false;
     }
 
-    private void printText(String text) {
+    void printText(String text) {
         textCanvas.drawColor(Color.BLACK);
         Rect bounds = new Rect();
-        whiteText.getTextBounds(text, 0, text.length(), bounds);
+        white.getTextBounds(text, 0, text.length(), bounds);
         textCanvas.drawText(text, (textCanvas.getWidth() - bounds.width()) / 2,
                 (textCanvas.getHeight() - bounds.height()) / 2,
-                whiteText);
+                white);
     }
 
     GestureDetector maybeMoveToNext = new GestureDetector(new GestureDetector.SimpleOnGestureListener() {
@@ -205,8 +261,8 @@ public class MainActivity extends Activity implements View.OnTouchListener
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             final int swipeMinDistance = vc.getScaledTouchSlop();
             final int swipeThresholdVelocity = vc.getScaledMinimumFlingVelocity();
-            final double topThreshold = 0.4 * imageBitmap.getHeight();
-            final double bottomThreshold = 0.6 * imageBitmap.getHeight();
+            final double topThreshold = 0.4 * height;
+            final double bottomThreshold = 0.6 * height;
             if (e1 != null && Math.abs(velocityX) > swipeThresholdVelocity &&
                     Math.abs(e1.getX() - e2.getX()) > swipeMinDistance &&
                     (e1.getY() < topThreshold &&  e2.getY() < topThreshold ||
@@ -242,12 +298,11 @@ public class MainActivity extends Activity implements View.OnTouchListener
 
                 for (int x=midX-outer; x<midX+outer; x++) {
                     for (int y=midY-outer; y<midY+outer; y++) {
-                        if (x >= 0 && x < textBitmap.getWidth() &&
-                                y >= 0 && y < textBitmap.getHeight()) {
+                        if (x >= 0 && x < width && y >= 0 && y < height) {
                             int pixel = textBitmap.getPixel(x, y);
                             if (Color.BLACK != pixel) {
                                 textHit = true;
-                                imageBitmap.setPixel(x, y, Color.CYAN);
+                                imageCanvas.drawPoint(x, y, cyan);
                             }
                         }
                     }
@@ -261,24 +316,4 @@ public class MainActivity extends Activity implements View.OnTouchListener
         return textHit || maybeMoveToNext.onTouchEvent(event);
     }
 
-    private void init() {
-        vc = ViewConfiguration.get(getApplicationContext());
-
-        image = (ImageView) findViewById(R.id.image);
-
-        // Kick off image showing when we have the size of the image view
-        image.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-            public void onGlobalLayout() {
-                if (0 != image.getHeight() && 0 != image.getWidth()) {
-                    fetchRepository(image.getWidth(), image.getHeight());
-                    image.setOnTouchListener(MainActivity.this);
-                    image.getViewTreeObserver().removeGlobalOnLayoutListener(this);
-                }
-            }
-        });
-
-        whiteText.setColor(Color.WHITE);
-        whiteText.setTextSize(55);
-        whiteText.setAntiAlias(true);
-    }
 }
