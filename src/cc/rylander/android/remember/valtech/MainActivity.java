@@ -29,6 +29,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
     Canvas textCanvas;
     ImageView image;
     Canvas imageCanvas;
+    Bitmap imageSrc;
     QuizRepository repository;
     ValtechQuizRepository valtechRepo;
     ViewConfiguration vc;
@@ -40,6 +41,8 @@ public class MainActivity extends Activity implements View.OnTouchListener
     boolean shouldCrop;
     int width;
     int height;
+    boolean okToShowImage;
+    float touchDownX;
 
 
     @Override
@@ -66,6 +69,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
                     final Bitmap imageBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565);
                     imageCanvas = new Canvas(imageBitmap);
                     image.setImageBitmap(imageBitmap);
+                    okToShowImage = true;
                     fetchRepository();
                     image.setOnTouchListener(MainActivity.this);
                     image.getViewTreeObserver().removeGlobalOnLayoutListener(this);
@@ -85,11 +89,13 @@ public class MainActivity extends Activity implements View.OnTouchListener
     @Override
     protected void onResume() {
         super.onResume();
-        if (null == repository) {
-            fetchRepository();
-        } else if (prefs.shouldCrop() != shouldCrop) {
-            showImage();
-            shouldCrop = prefs.shouldCrop();
+        if (okToShowImage) {
+            if (null == repository) {
+                fetchRepository();
+            } else if (prefs.shouldCrop() != shouldCrop) {
+                showCurrentImage();
+                shouldCrop = prefs.shouldCrop();
+            }
         }
     }
 
@@ -133,7 +139,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
                                 } else {
                                     MainActivity.this.valtechRepo = repository;
                                     MainActivity.this.repository = new CachingRepository(repository);
-                                    showImage();
+                                    showCurrentImage();
                                 }
                             }
                         });
@@ -144,13 +150,14 @@ public class MainActivity extends Activity implements View.OnTouchListener
     }
 
     @SuppressWarnings("unchecked")
-    synchronized void showImage() {
+    synchronized void showCurrentImage() {
         if (null == repository) {
             return;
         }
 
         if (repository.isCached(pos)) {
-            useBitmap(retryingGetBitMap());
+            imageSrc = retryingGetBitMap();
+            useBitmap(imageSrc);
 
         } else {
             final ProgressDialog progressDialog = ProgressDialog.show(this, getText(R.string.loading_image), null);
@@ -163,7 +170,12 @@ public class MainActivity extends Activity implements View.OnTouchListener
                 @Override
                 protected void onPostExecute(Bitmap bitmap) {
                     try {
-                        useBitmap(bitmap);
+                        if (null == bitmap) {
+                            showDialog(DIALOG_REPO_FAILED);
+                        } else {
+                            imageSrc = bitmap;
+                            useBitmap(imageSrc);
+                        }
                     } finally {
                         progressDialog.dismiss();                    
                     }
@@ -190,19 +202,20 @@ public class MainActivity extends Activity implements View.OnTouchListener
     }
 
     void useBitmap(Bitmap bitmap) {
+        useBitmap(bitmap, 0);
+    }
+    void useBitmap(Bitmap bitmap, int offset) {
         if (null != bitmap) {
             imageCanvas.drawColor(Color.BLACK);
 
-            imageCanvas.drawBitmap(bitmap, scaleAndCenter(bitmap), imagePaint);
+            imageCanvas.drawBitmap(bitmap, scaleAndCenter(bitmap, offset), imagePaint);
             image.invalidate();
 
             printText(repository.getName(pos));
-        } else {
-            showDialog(DIALOG_REPO_FAILED);
         }
     }
 
-    Matrix scaleAndCenter(Bitmap bitmap) {
+    Matrix scaleAndCenter(Bitmap bitmap, int offset) {
         final Matrix matrix = new Matrix();
         float xScale = (float) width / bitmap.getWidth();
         float yScale = (float) height / bitmap.getHeight();
@@ -211,7 +224,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
 
         float dx = (width - bitmap.getWidth() * scale) / 2;
         float dy = (height - bitmap.getHeight() * scale) / 2;
-        matrix.postTranslate(dx, dy);
+        matrix.postTranslate(dx + offset, dy);
 
         return matrix;
     }
@@ -250,7 +263,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
                 white);
     }
 
-    GestureDetector maybeMoveToNext = new GestureDetector(new GestureDetector.SimpleOnGestureListener() {
+    GestureDetector flingDetected = new GestureDetector(new GestureDetector.SimpleOnGestureListener() {
         @Override
         public boolean onDown(MotionEvent e) {
             // Needed for onFling to work
@@ -261,12 +274,9 @@ public class MainActivity extends Activity implements View.OnTouchListener
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             final int swipeMinDistance = vc.getScaledTouchSlop();
             final int swipeThresholdVelocity = vc.getScaledMinimumFlingVelocity();
-            final double topThreshold = 0.4 * height;
-            final double bottomThreshold = 0.6 * height;
             if (e1 != null && Math.abs(velocityX) > swipeThresholdVelocity &&
-                    Math.abs(e1.getX() - e2.getX()) > swipeMinDistance &&
-                    (e1.getY() < topThreshold &&  e2.getY() < topThreshold ||
-                     e1.getY() > bottomThreshold &&  e2.getY() > bottomThreshold)) {
+                Math.abs(e1.getX() - e2.getX()) > swipeMinDistance &&
+                isOutsideScratchArea(e1) && isOutsideScratchArea(e2)) {
                 if (e1.getX() > e2.getX()) {
                     pos = repository.nextPos(pos);
                     direction = 1;
@@ -274,46 +284,64 @@ public class MainActivity extends Activity implements View.OnTouchListener
                     pos = repository.prevPos(pos);
                     direction = -1;
                 }
-                showImage();
+                showCurrentImage();
                 return true;
             }
             return false;
         }
     });
 
+    boolean isOutsideScratchArea(MotionEvent e) {
+        final double topThreshold = 0.4 * height;
+        final double bottomThreshold = 0.6 * height;
+        return e.getY() < topThreshold || e.getY() > bottomThreshold;
+    }
+
     public boolean onTouch(View view, MotionEvent event) {
         super.onTouchEvent(event);
 
-        boolean textHit = false;
+        if (isOutsideScratchArea(event)) {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                touchDownX = event.getX();
+            }
+            if (!flingDetected.onTouchEvent(event)) {
+                if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                    useBitmap(imageSrc, (int) (event.getX() - touchDownX));
+                } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                    useBitmap(imageSrc);
+                }
+            }
 
-        switch (event.getAction()) {
-            case MotionEvent.ACTION_MOVE: {
-                int midX;
-                int midY;
-                float size;
-                midX = (int) event.getX();
-                midY = (int) event.getY();
-                size = event.getSize();
-                int outer = (int) (40 * size);
+        } else {
+            boolean textHit = false;
 
-                for (int x=midX-outer; x<midX+outer; x++) {
-                    for (int y=midY-outer; y<midY+outer; y++) {
-                        if (x >= 0 && x < width && y >= 0 && y < height) {
-                            int pixel = textBitmap.getPixel(x, y);
-                            if (Color.BLACK != pixel) {
-                                textHit = true;
-                                imageCanvas.drawPoint(x, y, cyan);
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_MOVE:
+                    int midX = (int) event.getX();
+                    int midY = (int) event.getY();
+                    float size = event.getSize();
+                    int outer = (int) (40 * size);
+
+                    for (int x=midX-outer; x<midX+outer; x++) {
+                        for (int y=midY-outer; y<midY+outer; y++) {
+                            if (x >= 0 && x < width && y >= 0 && y < height) {
+                                int pixel = textBitmap.getPixel(x, y);
+                                if (Color.BLACK != pixel) {
+                                    textHit = true;
+                                    imageCanvas.drawPoint(x, y, cyan);
+                                }
                             }
                         }
                     }
-                }
-                if (textHit) {
-                    image.invalidate(new Rect(midX-outer, midY-outer, midX+outer, midY+outer));
-                }
+                    if (textHit) {
+                        image.invalidate(new Rect(midX-outer, midY-outer, midX+outer, midY+outer));
+                    }
             }
+
         }
 
-        return textHit || maybeMoveToNext.onTouchEvent(event);
+        // Need to return true for e.g. down events or not move events will be received
+        return true;
     }
 
 }
