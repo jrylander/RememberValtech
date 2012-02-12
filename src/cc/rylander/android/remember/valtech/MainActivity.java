@@ -43,6 +43,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
     int height;
     boolean okToShowImage;
     float touchDownX;
+    boolean isScratching;
 
 
     @Override
@@ -300,7 +301,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
     public boolean onTouch(View view, MotionEvent event) {
         super.onTouchEvent(event);
 
-        if (isOutsideScratchArea(event)) {
+        if (isOutsideScratchArea(event) && !isScratching) {
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 touchDownX = event.getX();
             }
@@ -313,31 +314,32 @@ public class MainActivity extends Activity implements View.OnTouchListener
             }
 
         } else {
-            boolean textHit = false;
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                isScratching = false;
 
-            switch (event.getAction()) {
-                case MotionEvent.ACTION_MOVE:
-                    int midX = (int) event.getX();
-                    int midY = (int) event.getY();
-                    float size = event.getSize();
-                    int outer = (int) (40 * size);
+            } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                isScratching = true;
+                boolean textHit = false;
+                int midX = (int) event.getX();
+                int midY = (int) event.getY();
+                float size = event.getSize();
+                int outer = (int) (40 * size);
 
-                    for (int x=midX-outer; x<midX+outer; x++) {
-                        for (int y=midY-outer; y<midY+outer; y++) {
-                            if (x >= 0 && x < width && y >= 0 && y < height) {
-                                int pixel = textBitmap.getPixel(x, y);
-                                if (Color.BLACK != pixel) {
-                                    textHit = true;
-                                    imageCanvas.drawPoint(x, y, cyan);
-                                }
+                for (int x=midX-outer; x<midX+outer; x++) {
+                    for (int y=midY-outer; y<midY+outer; y++) {
+                        if (x >= 0 && x < width && y >= 0 && y < height) {
+                            int pixel = textBitmap.getPixel(x, y);
+                            if (Color.BLACK != pixel) {
+                                textHit = true;
+                                imageCanvas.drawPoint(x, y, cyan);
                             }
                         }
                     }
-                    if (textHit) {
-                        image.invalidate(new Rect(midX-outer, midY-outer, midX+outer, midY+outer));
-                    }
+                }
+                if (textHit) {
+                    image.invalidate(new Rect(midX-outer, midY-outer, midX+outer, midY+outer));
+                }
             }
-
         }
 
         // Need to return true for e.g. down events or not move events will be received
