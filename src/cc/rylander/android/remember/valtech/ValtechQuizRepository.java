@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 Johan Rylander (johan@rylander.cc). All rights reserved.
+ * Copyright (c) 2012 Johan Rylander (johan@rylander.cc). All rights reserved.
  */
 
 package cc.rylander.android.remember.valtech;

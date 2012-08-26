@@ -5,10 +5,7 @@
 package cc.rylander.android.remember.valtech;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
 import android.app.ProgressDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.*;
 import android.os.AsyncTask;
@@ -35,7 +32,6 @@ public class MainActivity extends Activity implements View.OnTouchListener
     ViewConfiguration vc;
     int pos;
     int direction = 1;
-    static final int DIALOG_REPO_FAILED = 0;
     boolean repoIsBeingCreated;
     Settings prefs;
     boolean shouldCrop;
@@ -44,6 +40,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
     boolean okToShowImage;
     float touchDownX;
     boolean isScratching;
+    GestureDetector flingDetected;
 
 
     @Override
@@ -85,6 +82,35 @@ public class MainActivity extends Activity implements View.OnTouchListener
         cyan.setColor(Color.CYAN);
 
         imagePaint.setFilterBitmap(true);
+
+        flingDetected = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onDown(MotionEvent e) {
+                // Needed for onFling to work
+                return true;
+            }
+
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                final int swipeMinDistance = vc.getScaledTouchSlop();
+                final int swipeThresholdVelocity = vc.getScaledMinimumFlingVelocity();
+                if (e1 != null && Math.abs(velocityX) > swipeThresholdVelocity &&
+                        Math.abs(e1.getX() - e2.getX()) > swipeMinDistance &&
+                        isOutsideScratchArea(e1) && isOutsideScratchArea(e2)) {
+                    if (e1.getX() > e2.getX()) {
+                        pos = repository.nextPos(pos);
+                        direction = 1;
+                    } else {
+                        pos = repository.prevPos(pos);
+                        direction = -1;
+                    }
+                    showCurrentImage();
+                    return true;
+                }
+                return false;
+            }
+        });
+
     }
 
     @Override
@@ -112,21 +138,6 @@ public class MainActivity extends Activity implements View.OnTouchListener
         FlurryAgent.onEndSession(this);
     }
 
-    @Override
-    protected Dialog onCreateDialog(int id) {
-        if (DIALOG_REPO_FAILED == id) {
-            return new AlertDialog.Builder(MainActivity.this).
-                    setMessage(R.string.repository_failed).
-                    setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialogInterface, int i) {
-                            finish();
-                        }
-                    }).
-                    show();
-        }
-        return  null;
-    }
-
     void fetchRepository() {
         if (null == repository && !repoIsBeingCreated) {
             repoIsBeingCreated = true;
@@ -136,7 +147,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
                             public void calledWhenDone(ValtechQuizRepository repository) {
                                 repoIsBeingCreated = false;
                                 if (null == repository) {
-                                    showDialog(DIALOG_REPO_FAILED);
+                                    new DialogRepositoryFailed().show(getFragmentManager(), "dialogRepoFailed");
                                 } else {
                                     MainActivity.this.valtechRepo = repository;
                                     MainActivity.this.repository = new CachingRepository(repository);
@@ -172,7 +183,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
                 protected void onPostExecute(Bitmap bitmap) {
                     try {
                         if (null == bitmap) {
-                            showDialog(DIALOG_REPO_FAILED);
+                            new DialogRepositoryFailed().show(getFragmentManager(), "dialogRepoFailed");
                         } else {
                             imageSrc = bitmap;
                             useBitmap(imageSrc);
@@ -263,34 +274,6 @@ public class MainActivity extends Activity implements View.OnTouchListener
                 (textCanvas.getHeight() - bounds.height()) / 2,
                 white);
     }
-
-    GestureDetector flingDetected = new GestureDetector(new GestureDetector.SimpleOnGestureListener() {
-        @Override
-        public boolean onDown(MotionEvent e) {
-            // Needed for onFling to work
-            return true;
-        }
-
-        @Override
-        public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-            final int swipeMinDistance = vc.getScaledTouchSlop();
-            final int swipeThresholdVelocity = vc.getScaledMinimumFlingVelocity();
-            if (e1 != null && Math.abs(velocityX) > swipeThresholdVelocity &&
-                Math.abs(e1.getX() - e2.getX()) > swipeMinDistance &&
-                isOutsideScratchArea(e1) && isOutsideScratchArea(e2)) {
-                if (e1.getX() > e2.getX()) {
-                    pos = repository.nextPos(pos);
-                    direction = 1;
-                } else {
-                    pos = repository.prevPos(pos);
-                    direction = -1;
-                }
-                showCurrentImage();
-                return true;
-            }
-            return false;
-        }
-    });
 
     boolean isOutsideScratchArea(MotionEvent e) {
         final double topThreshold = 0.4 * height;
