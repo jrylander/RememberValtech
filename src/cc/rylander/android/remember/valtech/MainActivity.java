@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.graphics.*;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.view.*;
 import android.widget.ImageView;
 import cc.rylander.android.remember.QuizRepository;
@@ -30,6 +31,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
     QuizRepository repository;
     ValtechQuizRepository valtechRepo;
     ViewConfiguration vc;
+    int fingerPrint;
     int pos;
     int direction = 1;
     boolean repoIsBeingCreated;
@@ -53,6 +55,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
         vc = ViewConfiguration.get(getApplicationContext());
         prefs = new Settings(this);
         shouldCrop = prefs.shouldCrop();
+        calculateFingerPrint();
 
         image = (ImageView) findViewById(R.id.image);
 
@@ -136,6 +139,12 @@ public class MainActivity extends Activity implements View.OnTouchListener
     protected void onStop() {
         super.onStop();
         FlurryAgent.onEndSession(this);
+    }
+
+    void calculateFingerPrint() {
+        DisplayMetrics metrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        fingerPrint = metrics.densityDpi / 2;
     }
 
     void fetchRepository() {
@@ -306,7 +315,7 @@ public class MainActivity extends Activity implements View.OnTouchListener
                 int midX = (int) event.getX();
                 int midY = (int) event.getY();
                 float size = event.getSize();
-                int outer = (int) (40 * size);
+                int outer = (int) (150 * size);
 
                 for (int x=midX-outer; x<midX+outer; x++) {
                     for (int y=midY-outer; y<midY+outer; y++) {
